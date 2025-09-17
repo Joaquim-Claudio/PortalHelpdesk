@@ -1,0 +1,6 @@
+@PortalHelpdesk_HostAddress = http://localhost:5139
+
+GET {{PortalHelpdesk_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

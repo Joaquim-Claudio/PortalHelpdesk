@@ -1,5 +1,6 @@
-using Microsoft.AspNetCore.Authentication.Negotiate;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using PortalHelpdesk.Configurations;
 using PortalHelpdesk.Services;
 using PortalHelpdesk.Services.AutomationServices;
@@ -33,11 +34,10 @@ builder.Services.AddScoped<TicketResolutionsService>();
 builder.Services.AddScoped<EmailNotificationService>();
 builder.Services.AddScoped<IEmailTemplateProvider, EmailTemplateProvider>();
 
-builder.Services.AddScoped<UserResolverFilter>();
-
 builder.Services.AddHostedService<EmailListenerService>();
 builder.Services.AddHostedService<AutoCloserService>();
 
+builder.Services.AddScoped<UserResolverFilter>();
 builder.Services.AddControllers(options =>
 {
     options.Filters.Add<UserResolverFilter>();
@@ -47,14 +47,35 @@ builder.Services.AddControllers(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddAuthentication(NegotiateDefaults.AuthenticationScheme)
-   .AddNegotiate();
 
+
+// Utilizar user-secrets para armazenar configurações sensíveis em desenvolvimento
+
+// --- Autenticação com Azure AD ---
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.Authority = $"https://login.microsoftonline.com/{builder.Configuration["AzureAd:TenantId"]}/v2.0";
+        options.Audience = builder.Configuration["AzureAd:ClientId"];
+
+        // Opcional: valida emissor específico
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = $"https://login.microsoftonline.com/{builder.Configuration["AzureAd:TenantId"]}/v2.0"
+        };
+    });
+
+// --- Autorização baseada em scopes ---
 builder.Services.AddAuthorization(options =>
 {
-    // By default, all incoming requests will be authorized according to the default policy.
-    options.FallbackPolicy = options.DefaultPolicy;
+    options.AddPolicy("ApiScope", policy =>
+    {
+        policy.RequireClaim("scp", "Access.AsUser");
+    });
 });
+
+
 
 string connString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "";
 

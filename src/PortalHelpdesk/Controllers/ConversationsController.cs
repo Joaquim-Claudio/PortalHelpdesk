@@ -1,13 +1,15 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Identity.Web.Resource;
 using PortalHelpdesk.Models.Messages;
 using PortalHelpdesk.Services.DataPersistenceServices;
 
 namespace PortalHelpdesk.Controllers
 {
     [ApiController]
-    [Authorize(Roles = "BUILTIN\\Users")]
     [Route("/api/[controller]")]
+    [Authorize]
+    [RequiredScope("Access.AsUser")]
     public class ConversationsController : ControllerBase
     {
         private readonly ILogger<ConversationsController> _logger;

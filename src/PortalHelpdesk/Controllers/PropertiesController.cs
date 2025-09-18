@@ -1,12 +1,14 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Identity.Web.Resource;
 using PortalHelpdesk.Services.DataPersistenceServices;
 
 namespace PortalHelpdesk.Controllers
 {
     [ApiController]
-    [Authorize(Roles = "BUILTIN\\Users")]
     [Route("/api/[controller]")]
+    [Authorize]
+    [RequiredScope("Access.AsUser")]
     public class PropertiesController : ControllerBase
     {
         private readonly ILogger<PropertiesController> _logger;

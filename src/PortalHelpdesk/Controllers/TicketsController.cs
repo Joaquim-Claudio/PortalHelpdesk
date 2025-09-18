@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Identity.Web.Resource;
 using PortalHelpdesk.Dtos;
 using PortalHelpdesk.Models;
 using PortalHelpdesk.Services.DataPersistenceServices;
@@ -7,8 +8,9 @@ using PortalHelpdesk.Services.DataPersistenceServices;
 namespace PortalHelpdesk.Controllers
 {
     [ApiController]
-    [Authorize(Roles = "BUILTIN\\Users")]
     [Route("/api/[controller]")]
+    [Authorize]
+    [RequiredScope("Access.AsUser")]
     public class TicketsController : ControllerBase
     {
         private readonly ILogger<TicketsController> _logger;

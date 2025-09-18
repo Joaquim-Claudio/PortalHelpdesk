@@ -1,13 +1,15 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Identity.Web.Resource;
 using PortalHelpdesk.Models;
 using PortalHelpdesk.Services.DataPersistenceServices;
 
 namespace PortalHelpdesk.Controllers
 {
     [ApiController]
-    [Authorize(Roles = "BUILTIN\\Users")]
     [Route("/api/[controller]")]
+    [Authorize]
+    [RequiredScope("Access.AsUser")]
     public class ResolutionsController: ControllerBase
     {
         private readonly ILogger<ResolutionsController> _logger;

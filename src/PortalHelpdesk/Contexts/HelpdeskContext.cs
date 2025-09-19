@@ -81,7 +81,6 @@ namespace PortalHelpdesk.Contexts
                 new User { 
                     Id = 1, 
                     Name = "System",
-                    ADUsername = "SYSTEM\\system",
                     Email = "",
                     CreatedAt = DateTime.UtcNow,
                     Role = "System",

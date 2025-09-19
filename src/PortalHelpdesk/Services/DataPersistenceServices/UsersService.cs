@@ -20,16 +20,10 @@ namespace PortalHelpdesk.Services.DataPersistenceServices
             return user;
         }
 
-        public async Task<User?> GetUserByADUsername(string adUsername)
-        {
-            var user = await _context.Users
-                .FirstOrDefaultAsync(u => u.ADUsername == adUsername);
-            return user;
-        }
-
         public async Task<User?> GetUserByEmail(string email)
         {
             var user = await _context.Users
+                .Include(u => u.Group)
                 .FirstOrDefaultAsync(u => u.Email == email);
             return user;
         }
@@ -37,6 +31,7 @@ namespace PortalHelpdesk.Services.DataPersistenceServices
         public async Task<User?> GetSystemUser()
         {
             var user = await _context.Users
+                .Include(u => u.Group)
                 .FirstOrDefaultAsync(u => u.Name == "System");
             return user;
         }

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Identity.Web.Resource;
+using PortalHelpdesk.Dtos;
 using PortalHelpdesk.Models;
 using PortalHelpdesk.Services.DataPersistenceServices;
 
@@ -19,6 +20,30 @@ namespace PortalHelpdesk.Controllers
         {
             _logger = logger;
             _usersService = usersService;
+        }
+
+        [HttpGet("byemail")]
+        public async Task<IActionResult> GetByEmail([FromQuery (Name = "email")] string userEmail)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(userEmail))
+                {
+                    _logger.LogInformation("User email cannot empty");
+                    return BadRequest("User email cannot empty");
+                }
+
+                var users = await _usersService.GetUserByEmail(userEmail);
+                _logger.LogInformation("OK");
+
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An error occurred while processing the request.");
+                throw;
+            }
+
         }
 
         [HttpGet("all")]

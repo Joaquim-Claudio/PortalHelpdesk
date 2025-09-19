@@ -60,8 +60,8 @@ namespace PortalHelpdesk.Controllers
             {
                 var ticket = await _ticketsService.GetTicketById(ticketId);
 
-                string ADUsername = User.Identity?.Name ?? throw new UnauthorizedAccessException();
-                var user = await _usersService.GetUserByADUsername(ADUsername);
+                string username = User.Identity?.Name ?? throw new UnauthorizedAccessException();
+                var user = await _usersService.GetUserByEmail(username);
 
                 if (user == null || ticket == null)
                 {

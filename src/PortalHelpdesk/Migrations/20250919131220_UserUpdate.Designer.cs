@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PortalHelpdesk.Contexts;
@@ -12,9 +13,11 @@ using PortalHelpdesk.Contexts;
 namespace PortalHelpdesk.Migrations
 {
     [DbContext(typeof(HelpdeskContext))]
-    partial class HelpdeskContextModelSnapshot : ModelSnapshot
+    [Migration("20250919131220_UserUpdate")]
+    partial class UserUpdate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

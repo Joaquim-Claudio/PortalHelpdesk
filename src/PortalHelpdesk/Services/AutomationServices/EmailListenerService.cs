@@ -144,7 +144,7 @@ namespace PortalHelpdesk.Services.AutomationServices
         public async Task CreateTicket(MimeMessage message)
         {
             var requester = await GetRequester(message);
-            var creator = await _usersService.GetUserByADUsername("SYSTEM\\system");
+            var creator = await _usersService.GetUserByEmail("SYSTEM\\system");
 
             var newMessage = new Message
             {
@@ -175,14 +175,10 @@ namespace PortalHelpdesk.Services.AutomationServices
 
             if (user == null)
             {
-                string ADUsername = string.Concat(_userDefaults.DefaultRequesterGroup, "\\",
-                    from.Name.Split(' ').First().ToLower(), ".", from.Name.Split(' ').Last().ToLower());
-
                 user = new User
                 {
                     Name = from.Name,
                     Email = from.Address,
-                    ADUsername = ADUsername,
                     IsActive = false,
                     Role = "Requester"
                 };

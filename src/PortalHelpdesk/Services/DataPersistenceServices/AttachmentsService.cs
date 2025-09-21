@@ -1,11 +1,14 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using MimeKit;
+using Microsoft.Graph;
+using Microsoft.Graph.Models;
 using PortalHelpdesk.Configurations;
 using PortalHelpdesk.Contexts;
 using PortalHelpdesk.Models;
 using PortalHelpdesk.Models.Attachments;
-using PortalHelpdesk.Models.Messages;
+using DbAttachment = PortalHelpdesk.Models.Attachments.Attachment;
+using DbMessage = PortalHelpdesk.Models.Messages.Message;
+using MsMessage = Microsoft.Graph.Models.Message;
 
 namespace PortalHelpdesk.Services.DataPersistenceServices
 {
@@ -27,7 +30,7 @@ namespace PortalHelpdesk.Services.DataPersistenceServices
             }
         }
 
-        public async Task<Attachment?> GetAttachmentById(int id)
+        public async Task<DbAttachment?> GetAttachmentById(int id)
         {
             var attachment = await _context.Attachments.FindAsync(id);
 
@@ -56,37 +59,48 @@ namespace PortalHelpdesk.Services.DataPersistenceServices
             return attachments;
         }
 
-        public async Task<List<MessageAttachment>> SaveEmailAttachments(Message dbMessage, MimeMessage emailMessage)
+        public async Task<List<MessageAttachment>> SaveEmailAttachments(DbMessage dbMessage, MsMessage emailMessage, 
+            GraphServiceClient _graphClient)
         {
             var savedAttachments = new List<MessageAttachment>();
 
+            if (emailMessage.Attachments == null || emailMessage.Attachments.Count == 0)
+                return savedAttachments;
+
+            var folderPath = Path.Combine(_uploadsRoot, $"Msg-{dbMessage.Id}");
+            Directory.CreateDirectory(folderPath);
+
             foreach (var attachment in emailMessage.Attachments)
             {
-                if (attachment is MimePart mimePart)
+                if (attachment is FileAttachment fileAttachment)
                 {
-                    var folderPath = Path.Combine(_uploadsRoot, $"Msg {dbMessage.Id}");
-                    Directory.CreateDirectory(folderPath);
-
-                    var fileName = mimePart.FileName ?? $"{Guid.NewGuid()}.dat";
+                    var fileName = fileAttachment.Name ?? $"{Guid.NewGuid()}.dat";
                     var extension = Path.GetExtension(fileName).ToLowerInvariant();
 
-                    if(!GetAllowedFileTypes().Contains(extension))
-                    {
+                    if (!GetAllowedFileTypes().Contains(extension))
                         continue;
-                    }
 
                     var uniqueName = $"{Guid.NewGuid()}{extension}";
                     var filePath = Path.Combine(folderPath, uniqueName);
 
-                    using (var stream = File.Create(filePath))
+                    byte[] contentBytes = fileAttachment.ContentBytes ?? [];
+                    if (contentBytes == null || contentBytes.Length == 0)
                     {
-                        await mimePart.Content.DecodeToAsync(stream);
+
+                        var attachmentFromGraph = await _graphClient.Users[emailMessage.From?.EmailAddress?.Address]
+                            .Messages[emailMessage.Id]
+                            .Attachments[fileAttachment.Id]
+                            .GetAsync() as FileAttachment;
+
+                        contentBytes = attachmentFromGraph?.ContentBytes ?? [];
                     }
 
-                    var attachmentEntity = new Attachment
+                    await File.WriteAllBytesAsync(filePath, contentBytes);
+
+                    var attachmentEntity = new DbAttachment
                     {
                         FileName = fileName,
-                        FileType = mimePart.ContentType.MimeType,
+                        FileType = fileAttachment.ContentType ?? "application/octet-stream",
                         FileLocation = filePath,
                         UploadedAt = DateTime.UtcNow
                     };
@@ -102,16 +116,16 @@ namespace PortalHelpdesk.Services.DataPersistenceServices
                 }
             }
 
-            if (savedAttachments.Count != 0)
+            if (savedAttachments.Count > 0)
                 await _context.SaveChangesAsync();
 
             return savedAttachments;
         }
 
 
-        public async Task<MessageAttachment?> SaveMessageAttachment(Message message, IFormFile file)
+        public async Task<MessageAttachment?> SaveMessageAttachment(DbMessage message, IFormFile file)
         {
-            var folderPath = Path.Combine(_uploadsRoot, $"Msg {message.Id}");
+            var folderPath = Path.Combine(_uploadsRoot, $"Msg-{message.Id}");
             var attachment = await SaveAttachment(file, folderPath);
 
             var messageAttachment = new MessageAttachment
@@ -128,7 +142,7 @@ namespace PortalHelpdesk.Services.DataPersistenceServices
 
         public async Task<ResolutionAttachment?> SaveResolutionAttachment(TicketResolution resolution, IFormFile file)
         {
-            var folderPath = Path.Combine(_uploadsRoot, $"Res {resolution.Id}");
+            var folderPath = Path.Combine(_uploadsRoot, $"Res-{resolution.Id}");
             var attachment = await SaveAttachment(file, folderPath);
 
             var resolutionAttachment = new ResolutionAttachment
@@ -143,7 +157,7 @@ namespace PortalHelpdesk.Services.DataPersistenceServices
             return resolutionAttachment;
         }
 
-        public async Task<Attachment> SaveAttachment(IFormFile file, string folderPath)
+        public async Task<DbAttachment> SaveAttachment(IFormFile file, string folderPath)
         {
             Directory.CreateDirectory(folderPath);
 
@@ -156,7 +170,7 @@ namespace PortalHelpdesk.Services.DataPersistenceServices
                 await file.CopyToAsync(stream);
             }
 
-            var attachment = new Attachment
+            var attachment = new DbAttachment
             {
                 FileName = file.FileName,
                 FileType = file.ContentType,

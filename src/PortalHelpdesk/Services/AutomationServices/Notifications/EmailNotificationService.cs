@@ -1,25 +1,99 @@
-﻿using MailKit.Security;
-using Microsoft.Extensions.Options;
-using MimeKit;
+﻿using Microsoft.Extensions.Options;
+using Microsoft.Graph;
+using Microsoft.Graph.Models;
 using PortalHelpdesk.Configurations;
 using PortalHelpdesk.Models;
-using PortalHelpdesk.Models.Messages;
 using PortalHelpdesk.Templates.EmailTemplateProvider;
+using DbMessage = PortalHelpdesk.Models.Messages.Message;
+using DbUser = PortalHelpdesk.Models.User;
 
 namespace PortalHelpdesk.Services.AutomationServices.Notifications
 {
     public class EmailNotificationService
     {
-        private readonly EmailConfiguration _config;
+        private readonly GraphServiceClient _graphClient;
+        private readonly MicrosoftGraphConfig _msGraphConfig;
         private readonly ILogger<EmailNotificationService> _logger;
         private readonly IEmailTemplateProvider _emailTemplateProvider;
 
-        public EmailNotificationService(IOptions<EmailConfiguration> config, ILogger<EmailNotificationService> logger,
-            IEmailTemplateProvider emailTemplateProvider)
+        public EmailNotificationService(GraphClientFactory factory, IOptions<MicrosoftGraphConfig> msGraphConfig,
+            ILogger<EmailNotificationService> logger, IEmailTemplateProvider emailTemplateProvider)
         {
-            _config = config.Value;
+            _graphClient = factory.Create();
+            _msGraphConfig = msGraphConfig.Value;
             _logger = logger;
             _emailTemplateProvider = emailTemplateProvider;
+        }
+
+        private Message BuildGraphMessage(string subject, string body, string to, string? cc = null,
+            string? messageId = null, string? inReplyto = null, List<string>? references = null)
+        {
+            var message = new Message
+            {
+                Subject = subject,
+                Body = new ItemBody
+                {
+                    ContentType = BodyType.Html,
+                    Content = body
+                },
+                BodyPreview = body.Length > 255 ? string.Concat(body.AsSpan(0, 252), "...") : body,
+                From = new Recipient
+                {
+                    EmailAddress = new EmailAddress
+                    {
+                        Name = "Helpdesk",
+                        Address = _msGraphConfig.UserEmail
+                    }
+                },
+                ToRecipients =
+                [
+                    new() { EmailAddress = new EmailAddress { Address = to } }
+                ],
+                CcRecipients = cc?.Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries)
+                                  .Select(e => new Recipient { EmailAddress = new EmailAddress { Address = e.Trim() } })
+                                  .ToList(),
+                InternetMessageId = messageId?.Trim()
+            };
+
+            if (!string.IsNullOrEmpty(inReplyto))
+            {
+                message.InternetMessageHeaders ??= [];
+                message.InternetMessageHeaders.Add(new InternetMessageHeader
+                {
+                    Name = "In-Reply-to",
+                    Value = inReplyto
+                });
+            }
+
+            if (references != null && references.Count > 0)
+            {
+                message.InternetMessageHeaders ??= [];
+                message.InternetMessageHeaders.Add(new InternetMessageHeader
+                {
+                    Name = "References",
+                    Value = string.Join(" ", references)
+                });
+            }
+
+            return message;
+        }
+
+        private async Task SendGraphMessageAsync(Message message)
+        {
+            try
+            {
+                //await _graphClient.Users[_msGraphConfig.UserEmail]
+                //    .SendMail
+                //    .PostAsync(new Microsoft.Graph.Users.Item.SendMail.SendMailPostRequestBody
+                //    {
+                //        Message = message,
+                //        SaveToSentItems = true
+                //    });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send email via Graph API.");
+            }
         }
 
         public async Task SendTicketAcknowledgement(Ticket ticket)
@@ -37,11 +111,11 @@ namespace PortalHelpdesk.Services.AutomationServices.Notifications
 
             if (!string.IsNullOrWhiteSpace(ticket.Requester.Email))
             {
-                var To = ticket.Requester.Email;
-                var Cc = ticket.Message.Cc ?? "";
+                var to = ticket.Requester.Email;
+                var cc = ticket.Message.Cc ?? "";
 
-                var emailMessage = CreateMimeMessage(To, Cc, subject, body);
-                await SendEmail(emailMessage);
+                var emailMessage = BuildGraphMessage(subject, body, to, cc);
+                await SendGraphMessageAsync(emailMessage);
 
             }
         }
@@ -58,14 +132,14 @@ namespace PortalHelpdesk.Services.AutomationServices.Notifications
             var subject = $"O pedido com ID ##RE-{ticket.Id}## foi atribuído a si";
             var body = _emailTemplateProvider.GetTicketRequesterChangeTemplate(ticket);
 
-            var To = ticket.Requester.Email;
-            var Cc = ticket.Message.Cc ?? "";
+            var to = ticket.Requester.Email;
+            var cc = ticket.Message.Cc ?? "";
 
-            var emailMessage = CreateMimeMessage(To, Cc, subject, body);
-            await SendEmail(emailMessage);
+            var emailMessage = BuildGraphMessage(subject, body, to, cc);
+            await SendGraphMessageAsync(emailMessage);
         }
 
-        public async Task SendTicketAssignedAcknowledgement(Ticket ticket, User assignee)
+        public async Task SendTicketAssignedAcknowledgement(Ticket ticket, DbUser assignee)
         {
 
             if (ticket.Requester?.Email != null)
@@ -73,11 +147,11 @@ namespace PortalHelpdesk.Services.AutomationServices.Notifications
                 var requesterSubject = $"O seu pedido com ID ##RE-{ticket.Id}## foi atribuído a {assignee.Name}";
                 var requesterBody = _emailTemplateProvider.GetTicketAssignedForRequesterTemplate(ticket, assignee);
 
-                var To = ticket.Requester.Email;
-                var Cc = ticket.Message?.Cc ?? "";
+                var to = ticket.Requester.Email;
+                var cc = ticket.Message?.Cc ?? "";
 
-                var emailMessage = CreateMimeMessage(To, Cc, requesterSubject, requesterBody);
-                await SendEmail(emailMessage);
+                var emailMessage = BuildGraphMessage(requesterSubject, requesterBody, to, cc);
+                await SendGraphMessageAsync(emailMessage);
 
             }
             else
@@ -91,11 +165,11 @@ namespace PortalHelpdesk.Services.AutomationServices.Notifications
                 var assigneeSubject = $"O pedido com ID ##RE-{ticket.Id}## foi atribuído a si";
                 var assigneeBody = _emailTemplateProvider.GetTicketAssignedForAssigneeTemplate(ticket);
 
-                var To = assignee.Email;
-                var Cc = ticket.Message?.Cc ?? "";
+                var to = assignee.Email;
+                var cc = ticket.Message?.Cc ?? "";
 
-                var emailMessage = CreateMimeMessage(To, Cc, assigneeSubject, assigneeBody);
-                await SendEmail(emailMessage);
+                var emailMessage = BuildGraphMessage(assigneeSubject, assigneeBody, to, cc);
+                await SendGraphMessageAsync(emailMessage);
 
             }
             else
@@ -118,11 +192,11 @@ namespace PortalHelpdesk.Services.AutomationServices.Notifications
             var subject = $"O seu pedido \"{ticket.Message.Subject}\" com ID ##RE-{ticket.Id}## foi resolvido";
             var body = _emailTemplateProvider.GetTicketResolvedTemplate(ticket, resolution);
 
-            var To = ticket.Requester.Email;
-            var Cc = ticket.Message.Cc ?? "";
+            var to = ticket.Requester.Email;
+            var cc = ticket.Message.Cc ?? "";
 
-            var emailMessage = CreateMimeMessage(To, Cc, subject, body);
-            await SendEmail(emailMessage);
+            var emailMessage = BuildGraphMessage(subject, body, to, cc);
+            await SendGraphMessageAsync(emailMessage);
         }
 
         public async Task SendTicketCancelledAcknowledgement(Ticket ticket)
@@ -136,11 +210,11 @@ namespace PortalHelpdesk.Services.AutomationServices.Notifications
             var subject = $"O seu pedido \"{ticket.Message.Subject}\" com ID ##RE-{ticket.Id}## foi cancelado";
             var body = _emailTemplateProvider.GetTicketCancelledTemplate(ticket);
 
-            var To = ticket.Requester.Email;
-            var Cc = ticket.Message.Cc ?? "";
+            var to = ticket.Requester.Email;
+            var cc = ticket.Message.Cc ?? "";
 
-            var emailMessage = CreateMimeMessage(To, Cc, subject, body);
-            await SendEmail(emailMessage);
+            var emailMessage = BuildGraphMessage(subject, body, to, cc);
+            await SendGraphMessageAsync(emailMessage);
         }
 
         public async Task SendTicketClosedAcknowledgement(Ticket ticket)
@@ -154,11 +228,11 @@ namespace PortalHelpdesk.Services.AutomationServices.Notifications
             var subject = $"O seu pedido \"{ticket.Message.Subject}\" com ID ##RE-{ticket.Id}## foi encerrado";
             var body = _emailTemplateProvider.GetTicketClosedTemplate(ticket);
 
-            var To = ticket.Requester.Email;
-            var Cc = ticket.Message.Cc?? "";
+            var to = ticket.Requester.Email;
+            var cc = ticket.Message.Cc ?? "";
 
-            var emailMessage = CreateMimeMessage(To, Cc, subject, body);
-            await SendEmail(emailMessage);
+            var emailMessage = BuildGraphMessage(subject, body, to, cc);
+            await SendGraphMessageAsync(emailMessage);
         }
 
         public async Task SendTicketReopenAcknowledgement(Ticket ticket)
@@ -172,11 +246,11 @@ namespace PortalHelpdesk.Services.AutomationServices.Notifications
             var subject = $"O seu pedido \"{ticket.Message.Subject}\" com ID ##RE-{ticket.Id}## foi reaberto";
             var body = _emailTemplateProvider.GetTicketReopenTemplate(ticket);
 
-            var To = ticket.Requester.Email;
-            var Cc = ticket.Message.Cc ?? "";
+            var to = ticket.Requester.Email;
+            var cc = ticket.Message.Cc ?? "";
 
-            var emailMessage = CreateMimeMessage(To, Cc, subject, body);
-            await SendEmail(emailMessage);
+            var emailMessage = BuildGraphMessage(subject, body, to, cc);
+            await SendGraphMessageAsync(emailMessage);
         }
 
         public async Task SendNewMessageNotification(Ticket ticket)
@@ -190,14 +264,14 @@ namespace PortalHelpdesk.Services.AutomationServices.Notifications
             var subject = $"Nova mensagem no pedido com ID ##RE-{ticket.Id}##";
             var body = _emailTemplateProvider.GetNewMessageTemplate(ticket);
 
-            var To = ticket.Assignee.Email;
-            var Cc = "";
+            var to = ticket.Assignee.Email;
+            var cc = "";
 
-            var emailMessage = CreateMimeMessage(To, Cc, subject, body);
-            await SendEmail(emailMessage);
+            var emailMessage = BuildGraphMessage(subject, body, to, cc);
+            await SendGraphMessageAsync(emailMessage);
         }
 
-        public async Task SendMessage(Ticket ticket, Message message)
+        public async Task SendMessage(Ticket ticket, DbMessage message)
         {
             if (ticket.Message == null || ticket.Requester?.Email == null || message.Subject == null || message.Content == null)
             {
@@ -208,53 +282,11 @@ namespace PortalHelpdesk.Services.AutomationServices.Notifications
             var subject = $"Re: [Request ID: #{ticket.Id}] {ticket.Message.Subject}";
             var body = _emailTemplateProvider.GetMessageTemplate(message);
 
-            var To = ticket.Requester.Email;
-            var Cc = ticket.Message.Cc ?? "";
+            var to = ticket.Requester.Email;
+            var cc = ticket.Message.Cc ?? "";
 
-            var emailMessage = CreateMimeMessage(To, Cc, subject, body, message);
-            await SendEmail(emailMessage);
+            var emailMessage = BuildGraphMessage(subject, body, to, cc, message.MessageId, message.InReplyTo, message.References);
+            await SendGraphMessageAsync(emailMessage);
         }
-
-        private MimeMessage CreateMimeMessage(string to, string cc, string subject, string body)
-        {
-            var message = new MimeMessage();
-            message.From.Add(new MailboxAddress("Helpdesk", _config.Email));
-            message.To.Add(MailboxAddress.Parse(to));
-
-            if (!string.IsNullOrWhiteSpace(cc))
-            {
-                foreach (var address in cc.Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries))
-                {
-                    message.Cc.Add(MailboxAddress.Parse(address.Trim()));
-                }
-            }
-
-            message.Subject = subject;
-            message.Body = new TextPart("html") { Text = body };
-
-            return message;
-        }
-        private MimeMessage CreateMimeMessage(string to, string cc, string subject, string body, Message message)
-        {
-            var mimeMessage = CreateMimeMessage(to, cc, subject, body);
-            mimeMessage.MessageId = message.MessageId;
-            mimeMessage.InReplyTo = message.InReplyTo;
-            if (message.References != null && message.References.Count > 0)
-            {
-                mimeMessage.References.AddRange(message.References);
-            }
-
-            return mimeMessage;
-        }
-
-        private async Task SendEmail(MimeMessage message)
-        {
-            using var client = new MailKit.Net.Smtp.SmtpClient();
-            await client.ConnectAsync(_config.SmtpServer, _config.SmtpPort, SecureSocketOptions.StartTls);
-            await client.AuthenticateAsync(_config.Email, _config.Password);
-            await client.SendAsync(message);
-            await client.DisconnectAsync(true);
-        }
-
     }
 }

@@ -15,8 +15,8 @@ namespace PortalHelpdesk.Extensions
         public static IServiceCollection AddAppConfigurations(this IServiceCollection services, IConfiguration config)
         {
             services.Configure<FileUploadOptions>(config.GetSection("FileUpload"));
-            services.Configure<EmailConfiguration>(config.GetSection("EmailConfiguration"));
-            services.Configure<UserDefaults>(config.GetSection("UserDefaults"));
+            services.Configure<MicrosoftGraphConfig>(config.GetSection("MicrosoftGraph"));
+            services.Configure<AppDefaults>(config.GetSection("AppDefaults"));
             return services;
         }
 
@@ -33,12 +33,14 @@ namespace PortalHelpdesk.Extensions
             services.AddScoped<TicketStatusService>();
             services.AddScoped<TicketResolutionsService>();
             services.AddScoped<EmailNotificationService>();
+            services.AddScoped<UserResolverFilter>();
             services.AddScoped<IEmailTemplateProvider, EmailTemplateProvider>();
 
             services.AddHostedService<EmailListenerService>();
             services.AddHostedService<AutoCloserService>();
 
-            services.AddScoped<UserResolverFilter>();
+            services.AddSingleton<GraphClientFactory>();
+
 
             return services;
         }

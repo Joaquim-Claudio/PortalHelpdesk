@@ -33,7 +33,8 @@ function Home() {
                     Authorization: `Bearer ${response.accessToken}`
                 }
             })
-    
+            
+            console.log(response.accessToken);
             console.log(userData);
 
         } catch (error) {

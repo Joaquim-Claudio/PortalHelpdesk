@@ -1,4 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using PortalHelpdesk.Configurations;
 using PortalHelpdesk.Contexts;
 using PortalHelpdesk.Models;
 using PortalHelpdesk.Models.Messages;
@@ -11,9 +13,10 @@ namespace PortalHelpdesk.Services.DataPersistenceServices
         private readonly HelpdeskContext _context;
         private readonly EmailNotificationService _emailNotificationService;
         private readonly TicketsService _ticketsService;
+        private readonly AppDefaults _appDefaults;
 
         public ConversationsService(HelpdeskContext context, EmailNotificationService emailNotificationService,
-            TicketsService ticketsService)
+            TicketsService ticketsService, IOptions<AppDefaults> options)
         {
             _context = context;
             _emailNotificationService = emailNotificationService;
@@ -72,7 +75,7 @@ namespace PortalHelpdesk.Services.DataPersistenceServices
             lastMessage ??= ticket.Message;
 
             newMessage.SentAt = DateTime.UtcNow;
-            newMessage.MessageId = MimeKit.Utils.MimeUtils.GenerateMessageId("helpdesk.cosmuz.com");
+            newMessage.MessageId = EmailParser.GenerateMessageId(_appDefaults.HelpdeskDefaultDomain);
             newMessage.InReplyTo = lastMessage?.MessageId;
             newMessage.References ??= [];
 

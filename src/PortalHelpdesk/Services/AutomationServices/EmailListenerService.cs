@@ -1,12 +1,11 @@
-﻿using MailKit;
-using MailKit.Net.Imap;
-using MailKit.Search;
-using Microsoft.Extensions.Options;
-using MimeKit;
+﻿using Microsoft.Extensions.Options;
+using Microsoft.Graph;
+using Microsoft.Graph.Models;
 using PortalHelpdesk.Configurations;
 using PortalHelpdesk.Models;
-using PortalHelpdesk.Models.Messages;
 using PortalHelpdesk.Services.DataPersistenceServices;
+using DbMessage = PortalHelpdesk.Models.Messages.Message;
+using DbUser = PortalHelpdesk.Models.User;
 
 namespace PortalHelpdesk.Services.AutomationServices
 {
@@ -14,8 +13,10 @@ namespace PortalHelpdesk.Services.AutomationServices
     public class EmailListenerService : BackgroundService
     {
         private readonly ILogger<EmailListenerService> _logger;
-        private readonly EmailConfiguration _emailConfig;
-        private readonly UserDefaults _userDefaults;
+
+        private readonly GraphServiceClient _graphClient;
+        private readonly MicrosoftGraphConfig _config;
+
         private TicketsService _ticketsService;
         private UsersService _usersService;
         private ConversationsService _conversationsService;
@@ -23,13 +24,13 @@ namespace PortalHelpdesk.Services.AutomationServices
 
         private readonly IServiceScopeFactory _scopeFactory;
 
-        public EmailListenerService(ILogger<EmailListenerService> logger, IOptions<EmailConfiguration> emailConfig, 
-            IOptions<UserDefaults> userDefaults, IServiceScopeFactory scopeFactory)
+        public EmailListenerService(ILogger<EmailListenerService> logger, GraphClientFactory factory, IOptions<MicrosoftGraphConfig> options,
+            IServiceScopeFactory scopeFactory)
         {
             _logger = logger;
-            _emailConfig = emailConfig.Value;
-            _userDefaults = userDefaults.Value;
             _scopeFactory = scopeFactory;
+            _graphClient = factory.Create();
+            _config = options.Value;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -44,24 +45,18 @@ namespace PortalHelpdesk.Services.AutomationServices
 
                 try
                 {
-                    var client = await ConnectClient(stoppingToken);
-
-                    var inbox = client.Inbox;
-                    await inbox.OpenAsync(FolderAccess.ReadWrite, stoppingToken);
-
-                    var messages = await FetchUnreadEmails(client, stoppingToken);
+                    var messages = await FetchUnreadEmails();
 
                     foreach (var item in messages)
                     {
-                        if(await IsNewTicket(item))
-                        
+                        if (await IsNewTicket(item))
+
                             await CreateTicket(item);
                         else
                             await AppendMessageToConversation(item);
-                        
+
                     }
 
-                    await DisconnectClient(client, stoppingToken);
                 }
                 catch (Exception ex)
                 {
@@ -72,47 +67,54 @@ namespace PortalHelpdesk.Services.AutomationServices
             }
         }
 
-        public async Task<ImapClient> ConnectClient(CancellationToken stoppingToken)
+        public async Task<List<Message>> FetchUnreadEmails(int top = 10)
         {
-            var client = new ImapClient();
-            await client.ConnectAsync(_emailConfig.ImapServer, _emailConfig.ImapPort, true, stoppingToken);
-            await client.AuthenticateAsync(_emailConfig.Email, _emailConfig.Password, stoppingToken);
+            var result = await _graphClient.Users[_config.UserEmail]
+                .MailFolders["Inbox"]
+                .Messages
+                .GetAsync(requestConfiguration =>
+                {
+                    requestConfiguration.QueryParameters.Top = top;
+                    requestConfiguration.QueryParameters.Orderby = ["receivedDateTime DESC"];
+                    requestConfiguration.QueryParameters.Filter = "isRead eq false";
+                    requestConfiguration.QueryParameters.Select =
+                    [
+                        "internetMessageHeaders",
+                        "from",
+                        "toRecipients",
+                        "ccRecipients",
+                        "subject",
+                        "body",
+                        "bodyPreview",
+                        "receivedDateTime",
+                        "importance",
+                        "hasAttachments",
+                        "conversationId",
+                        "internetMessageId"
+                    ];
+                });
 
-            return client;
-        }
+            var messages = result?.Value ?? [];
+            // await MarkMessagesAsRead(messages);
 
-        public async Task DisconnectClient(ImapClient client, CancellationToken stoppingToken)
-        {
-            await client.DisconnectAsync(true, stoppingToken);
-        }
-
-        public async Task<List<MimeMessage>> FetchUnreadEmails(ImapClient client, CancellationToken stoppingToken)
-        {
-            var inbox = client.Inbox;
-            await inbox.OpenAsync(FolderAccess.ReadWrite, stoppingToken);
-
-            var results = await inbox.SearchAsync(SearchQuery.NotSeen, stoppingToken);
-            List<MimeMessage> messages = new List<MimeMessage>();
-
-            foreach (var uid in results)
-            {
-                var message = await inbox.GetMessageAsync(uid, stoppingToken);
-                messages.Add(message);
-
-                await MarkEmailAsRead(client, uid, stoppingToken);
-            }
             return messages;
         }
 
-        public async Task MarkEmailAsRead(ImapClient client, UniqueId uid, CancellationToken stoppingToken)
+        public async Task MarkMessagesAsRead(List<Message> messages)
         {
-            var inbox = client.Inbox;
-            await inbox.AddFlagsAsync(uid, MessageFlags.Seen, true, stoppingToken);
+            foreach (var message in messages)
+            {
+                await _graphClient.Users[_config.UserEmail]
+                 .Messages[message.Id]
+                 .PatchAsync(new Message { IsRead = true });
+            }
+
         }
-        public async Task<bool> IsNewTicket(MimeMessage message)
+        public async Task<bool> IsNewTicket(Message message)
         {
-            if (message.Subject.Contains("Re:", StringComparison.OrdinalIgnoreCase) ||
-                message.Subject.Contains("Fwd:", StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrEmpty(message.Subject) &&
+                (message.Subject.Contains("Re:", StringComparison.OrdinalIgnoreCase) ||
+                 message.Subject.Contains("Fwd:", StringComparison.OrdinalIgnoreCase)))
             {
                 return await FindTicket(message) == null;
             }
@@ -120,7 +122,7 @@ namespace PortalHelpdesk.Services.AutomationServices
             return true;
         }
 
-        public async Task<Ticket?> FindTicket(MimeMessage message)
+        public async Task<Ticket?> FindTicket(Message message)
         {
             var subjectParts = message.Subject?.Split(' ');
             var ticketPart = subjectParts?.FirstOrDefault(s => s != null && s.StartsWith('#') && s.Length > 0);
@@ -128,7 +130,7 @@ namespace PortalHelpdesk.Services.AutomationServices
 
             foreach (char c in ticketPart!)
             {
-                if(char.IsDigit(c))
+                if (char.IsDigit(c))
                     strTicketId += c;
             }
 
@@ -141,19 +143,21 @@ namespace PortalHelpdesk.Services.AutomationServices
             return null;
         }
 
-        public async Task CreateTicket(MimeMessage message)
+        public async Task CreateTicket(Message message)
         {
             var requester = await GetRequester(message);
-            var creator = await _usersService.GetUserByEmail("SYSTEM\\system");
+            var creator = await _usersService.GetSystemUser();
 
-            var newMessage = new Message
+            var newMessage = new Models.Messages.Message
             {
-                From = message.From.ToString(),
-                To = _emailConfig.Email,
-                Cc = string.Join("; ", message.Cc.Mailboxes.Select(mb => mb.Address)),
-                Subject = message.Subject,
-                Content = EmailParser.ExtractHtmlContentWithInlineImages(message),
-                MessageId = message.MessageId,
+                From = message.From?.EmailAddress?.Address!,
+                To = _config.UserEmail,
+                Cc = message.CcRecipients != null
+                    ? string.Join("; ", message.CcRecipients.Select(mb => mb.EmailAddress?.Address))
+                    : string.Empty,
+                Subject = message.Subject ?? string.Empty,
+                Content = await EmailParser.ExtractHtmlContentWithInlineImagesAsync(message, _graphClient),
+                MessageId = message.InternetMessageId,
             };
 
             var ticket = new Ticket
@@ -163,22 +167,27 @@ namespace PortalHelpdesk.Services.AutomationServices
             };
 
             await _ticketsService.CreateTicket(ticket, newMessage, creator!);
-            await _attachmentsService.SaveEmailAttachments(newMessage, message);
+            await _attachmentsService.SaveEmailAttachments(newMessage, message, _graphClient);
 
             await Task.CompletedTask;
         }
 
-        public async Task<User?> GetRequester(MimeMessage message)
+        public async Task<DbUser?> GetRequester(Message message)
         {
-            var from = message.From.Mailboxes.First();
-            var user = await _usersService.GetUserByEmail(from.Address);
+            var fromEmail = message.From?.EmailAddress?.Address;
+            var fromName = message.From?.EmailAddress?.Name;
+
+            if (string.IsNullOrEmpty(fromEmail))
+                return null;
+
+            var user = await _usersService.GetUserByEmail(fromEmail);
 
             if (user == null)
             {
-                user = new User
+                user = new DbUser
                 {
-                    Name = from.Name,
-                    Email = from.Address,
+                    Name = fromName ?? fromEmail,
+                    Email = fromEmail,
                     IsActive = false,
                     Role = "Requester"
                 };
@@ -189,7 +198,7 @@ namespace PortalHelpdesk.Services.AutomationServices
             return user;
         }
 
-        public async Task AppendMessageToConversation(MimeMessage message)
+        public async Task AppendMessageToConversation(Message message)
         {
             var ticket = await FindTicket(message);
             if (ticket == null)
@@ -198,22 +207,39 @@ namespace PortalHelpdesk.Services.AutomationServices
                 return;
             }
 
-            var newMessage = new Message
+            var threadHeaders = GetThreadHeaders(message);
+
+            var newMessage = new DbMessage
             {
-                From = message.From.ToString(),
-                To = _emailConfig.Email,
-                Cc = string.Join("; ", message.Cc.Mailboxes.Select(mb => mb.Address)),
-                Subject = message.Subject,
-                Content = EmailParser.ExtractHtmlContentWithInlineImages(message),
-                MessageId = message.MessageId,
-                InReplyTo = message.InReplyTo,
-                References = [.. message.References]
+                From = message.From?.EmailAddress?.Address ?? string.Empty,
+                To = _config.UserEmail,
+                Cc = message.CcRecipients != null
+                    ? string.Join("; ", message.CcRecipients.Select(mb => mb.EmailAddress?.Address))
+                    : string.Empty,
+                Subject = message.Subject ?? string.Empty,
+                Content = await EmailParser.ExtractHtmlContentWithInlineImagesAsync(message, _graphClient),
+                MessageId = message.InternetMessageId,
+                InReplyTo = threadHeaders.InReplyTo,
+                References = [.. threadHeaders.References]
             };
 
             await _conversationsService.AddEmailMessageToConversation(newMessage, ticket);
-            await _attachmentsService.SaveEmailAttachments(newMessage, message);
+            await _attachmentsService.SaveEmailAttachments(newMessage, message, _graphClient);
 
             await Task.CompletedTask;
+        }
+
+        public (string? InReplyTo, string[] References) GetThreadHeaders(Message message)
+        {
+            string? inReplyTo = message.InternetMessageHeaders?
+                .FirstOrDefault(h => h?.Name != null && h.Name.Equals("In-Reply-To", System.StringComparison.OrdinalIgnoreCase))?.Value;
+
+            string? strReferences = message.InternetMessageHeaders?
+                .FirstOrDefault(h => h?.Name != null && h.Name.Equals("References", System.StringComparison.OrdinalIgnoreCase))?.Value;
+
+            var references = strReferences?.Split(' ', StringSplitOptions.RemoveEmptyEntries) ?? [];
+
+            return (inReplyTo, references);
         }
     }
 

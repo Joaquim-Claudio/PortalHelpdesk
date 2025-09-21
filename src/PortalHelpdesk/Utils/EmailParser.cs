@@ -1,34 +1,53 @@
-﻿using MimeKit;
+﻿using Microsoft.Graph;
+using Microsoft.Graph.Models;
 
 public static class EmailParser
 {
-    public static string ExtractHtmlContentWithInlineImages(MimeMessage message)
+    public static async Task<string> ExtractHtmlContentWithInlineImagesAsync(Message message, GraphServiceClient graphClient)
     {
-        // Priorizar o HtmlBody
-        var htmlContent = message.HtmlBody ?? message.TextBody ?? string.Empty;
+        if (message.Body == null)
+            return string.Empty;
 
-        if (message.Body is Multipart multipart)
+        // HTML do email
+        var htmlContent = message.Body.Content ?? string.Empty;
+
+        // Iterar sobre attachments inline
+        if (message.Attachments != null && message.Attachments.Count > 0)
         {
-            foreach (var part in multipart)
+            foreach (var attachment in message.Attachments)
             {
-                if (part is MimePart mimePart && !mimePart.IsAttachment && mimePart.ContentId != null)
+                if (attachment is FileAttachment fileAttachment && fileAttachment.IsInline == true)
                 {
-                    using var ms = new MemoryStream();
-                    mimePart.Content.DecodeTo(ms);
-                    var bytes = ms.ToArray();
+                    // Se o ContentBytes não estiver carregado, buscar do Graph
+                    byte[] contentBytes = fileAttachment.ContentBytes ?? [];
+                    if (contentBytes == null || contentBytes.Length == 0)
+                    {
+                        var attachmentFromGraph = await graphClient.Users[message.From?.EmailAddress?.Address]
+                            .Messages[message.Id]
+                            .Attachments[fileAttachment.Id]
+                            .GetAsync() as FileAttachment;
 
-                    // Converter para Base64
-                    var base64 = Convert.ToBase64String(bytes);
+                        contentBytes = attachmentFromGraph?.ContentBytes ?? [];
+                    }
+
+                    var base64 = Convert.ToBase64String(contentBytes);
+                    var mimeType = fileAttachment.ContentType ?? "application/octet-stream";
 
                     // Substituir cid pelo inline base64
                     htmlContent = htmlContent.Replace(
-                        $"cid:{mimePart.ContentId}",
-                        $"data:{mimePart.ContentType.MimeType};base64,{base64}"
-                    );
+                        $"cid:{fileAttachment.ContentId}",
+                        $"data:{mimeType};base64,{base64}");
                 }
             }
         }
 
         return htmlContent;
     }
+
+    public static string GenerateMessageId(string domain)
+    {
+        var id = Guid.NewGuid().ToString("N");
+        return $"<{id}@{domain}>";
+    }
+
 }

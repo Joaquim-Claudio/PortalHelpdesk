@@ -12,11 +12,11 @@ namespace PortalHelpdesk.Filters
     {
         private readonly HelpdeskContext _context;
         private readonly ILogger<UserResolverFilter> _logger;
-        private readonly UserDefaults _userDefaults;
+        private readonly AppDefaults _userDefaults;
         private readonly UsersService _usersService;
 
         public UserResolverFilter(HelpdeskContext context, ILogger<UserResolverFilter> logger, 
-            IOptions<UserDefaults> userDefaults, UsersService usersService)
+            IOptions<AppDefaults> userDefaults, UsersService usersService)
         {
             _context = context;
             _logger = logger;

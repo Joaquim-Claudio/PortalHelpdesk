@@ -1,6 +1,5 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
-using MimeKit;
 
 #nullable disable
 
@@ -24,7 +23,7 @@ namespace PortalHelpdesk.Migrations
                 type: "text",
                 nullable: true);
 
-            migrationBuilder.AddColumn<MessageIdList>(
+            migrationBuilder.AddColumn<List<string>>(
                 name: "References",
                 table: "Messages",
                 type: "text[]",

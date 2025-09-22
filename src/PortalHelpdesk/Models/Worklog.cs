@@ -5,7 +5,7 @@ namespace PortalHelpdesk.Models
     public class Worklog
     {
         public int Id { get; set; }
-        public string Description { get; set; }
+        public required string Description { get; set; }
         public TimeOnly TimeTaken { get; set; }
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }

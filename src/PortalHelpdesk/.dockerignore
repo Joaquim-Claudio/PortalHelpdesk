@@ -16,6 +16,7 @@
 **/charts
 **/docker-compose*
 **/Dockerfile*
+Dockerfile*
 **/node_modules
 **/npm-debug.log
 **/obj
@@ -40,3 +41,5 @@ README.md
 *.user
 *.cache
 *.DS_Store
+Uploads/
+.editorconfig

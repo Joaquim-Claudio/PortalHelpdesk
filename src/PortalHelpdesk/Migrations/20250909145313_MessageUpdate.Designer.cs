@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using MimeKit;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using PortalHelpdesk.Contexts;
 
@@ -231,7 +230,7 @@ namespace PortalHelpdesk.Migrations
                     b.Property<string>("MessageId")
                         .HasColumnType("text");
 
-                    b.Property<MessageIdList>("References")
+                    b.Property<List<string>>("References")
                         .HasColumnType("text[]");
 
                     b.Property<DateTime>("SentAt")

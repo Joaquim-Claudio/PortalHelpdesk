@@ -7,7 +7,7 @@ namespace PortalHelpdesk.Services.AutomationServices
     {
         private readonly ILogger<AutoCloserService> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
-        private TicketsService _ticketsService;
+        private TicketsService? _ticketsService;
         public AutoCloserService(ILogger<AutoCloserService> logger, IServiceScopeFactory scopeFactory)
         {
             _logger = logger;

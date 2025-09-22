@@ -9,7 +9,7 @@ namespace PortalHelpdesk.Models.Attachments
         public int AttachmentId { get; set; }
         // Navigation properties
         [JsonIgnore]
-        public TicketResolution TicketResolution { get; set; }
-        public Attachment Attachment { get; set; }
+        public TicketResolution? TicketResolution { get; set; }
+        public required Attachment Attachment { get; set; }
     }
 }

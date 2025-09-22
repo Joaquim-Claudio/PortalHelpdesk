@@ -33,18 +33,10 @@ namespace PortalHelpdesk.Services.AutomationServices.Notifications
                 Subject = subject,
                 Body = new ItemBody
                 {
-                    ContentType = BodyType.Html,
-                    Content = body
+                    Content = body,
+                    ContentType = BodyType.Html
                 },
                 BodyPreview = body.Length > 255 ? string.Concat(body.AsSpan(0, 252), "...") : body,
-                From = new Recipient
-                {
-                    EmailAddress = new EmailAddress
-                    {
-                        Name = "Helpdesk",
-                        Address = _msGraphConfig.UserEmail
-                    }
-                },
                 ToRecipients =
                 [
                     new() { EmailAddress = new EmailAddress { Address = to } }
@@ -82,13 +74,13 @@ namespace PortalHelpdesk.Services.AutomationServices.Notifications
         {
             try
             {
-                //await _graphClient.Users[_msGraphConfig.UserEmail]
-                //    .SendMail
-                //    .PostAsync(new Microsoft.Graph.Users.Item.SendMail.SendMailPostRequestBody
-                //    {
-                //        Message = message,
-                //        SaveToSentItems = true
-                //    });
+                await _graphClient.Users[_msGraphConfig.UserEmail]
+                    .SendMail
+                    .PostAsync(new Microsoft.Graph.Users.Item.SendMail.SendMailPostRequestBody
+                    {
+                        Message = message,
+                        SaveToSentItems = true
+                    });
             }
             catch (Exception ex)
             {

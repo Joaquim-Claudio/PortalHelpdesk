@@ -5,8 +5,8 @@ namespace PortalHelpdesk.Dtos
 {
     public class CreateTicketRequest
     {
-        public Ticket Ticket { get; set; }
-        public Message Message { get; set; }
+        public required Ticket Ticket { get; set; }
+        public required Message Message { get; set; }
     }
 
 }

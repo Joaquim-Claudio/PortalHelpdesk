@@ -21,6 +21,7 @@ namespace PortalHelpdesk.Services.DataPersistenceServices
             _context = context;
             _emailNotificationService = emailNotificationService;
             _ticketsService = ticketsService;
+            _appDefaults = options.Value;
         }
 
         public async Task<Conversation?> GetConversationByTicketId(Ticket ticket)
@@ -75,7 +76,7 @@ namespace PortalHelpdesk.Services.DataPersistenceServices
             lastMessage ??= ticket.Message;
 
             newMessage.SentAt = DateTime.UtcNow;
-            newMessage.MessageId = EmailParser.GenerateMessageId(_appDefaults.HelpdeskDefaultDomain);
+            newMessage.MessageId = EmailParser.GenerateMessageId(_appDefaults.DefaultHelpdeskDomain);
             newMessage.InReplyTo = lastMessage?.MessageId;
             newMessage.References ??= [];
 

@@ -131,6 +131,7 @@ namespace PortalHelpdesk.Services.DataPersistenceServices
             var messageAttachment = new MessageAttachment
             {
                 MessageId = message.Id,
+                Message = message,
                 Attachment = attachment
             };
 
@@ -148,6 +149,7 @@ namespace PortalHelpdesk.Services.DataPersistenceServices
             var resolutionAttachment = new ResolutionAttachment
             {
                 ResolutionId = resolution.Id,
+                TicketResolution = resolution,
                 Attachment = attachment
             };
 

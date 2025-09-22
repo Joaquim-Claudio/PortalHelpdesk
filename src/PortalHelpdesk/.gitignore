@@ -10,6 +10,7 @@ obj/
 
 # Visual Studio Code
 .vscode/
+.editorconfig
 
 # OS generated files
 .DS_Store
@@ -29,6 +30,9 @@ packages/
 # Test results
 TestResults/
 *.trx
+
+# Uploaded files
+Uploads/
 
 # Others
 *.vs/

@@ -6,7 +6,7 @@ namespace PortalHelpdesk.Models
     {
         public int Id { get; set; }
         public DateTime ChangedAt { get; set; }
-        public string Field { get; set; }
+        public required string Field { get; set; }
         public string? OldValue { get; set; }
         public string? NewValue { get; set; }
         // Foreign keys

@@ -5,11 +5,11 @@ namespace PortalHelpdesk.Models.Messages
     public class Message
     {
         public int Id { get; set; }
-        public string From { get; set; }
-        public string To { get; set; }
+        public required string From { get; set; }
+        public required string To { get; set; }
         public string? Cc { get; set; }
-        public string Subject { get; set; }
-        public string Content { get; set; }
+        public required string Subject { get; set; }
+        public required string Content { get; set; }
         public DateTime SentAt { get; set; }
         public string? InReplyTo { get; set; }
         public string? MessageId { get; set; }

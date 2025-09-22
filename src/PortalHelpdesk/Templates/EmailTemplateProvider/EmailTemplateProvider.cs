@@ -1,5 +1,5 @@
-﻿using Microsoft.Build.Evaluation;
-using Org.BouncyCastle.Tsp;
+﻿using Microsoft.Extensions.Options;
+using PortalHelpdesk.Configurations;
 using PortalHelpdesk.Models;
 using PortalHelpdesk.Models.Messages;
 
@@ -7,12 +7,17 @@ namespace PortalHelpdesk.Templates.EmailTemplateProvider
 {
     public class EmailTemplateProvider : IEmailTemplateProvider
     {
+        private readonly AppDefaults _appDefaults;
+        public EmailTemplateProvider(IOptions<AppDefaults> options)
+        {
+            _appDefaults = options.Value;
+        }
         public string GetTicketAcknowledgementTemplate(Ticket ticket)
         {
             string ticketId = ticket.Id.ToString();
             string requesterName = ticket.Requester?.Name ?? "requisitante";
             string ticketTitle = ticket.Message?.Subject ?? "Sem Título";
-            string ticketUrl = $"https://helpdesk.cosmuz.com/ticket/{ticket.Id}";
+            string ticketUrl = $"https://{_appDefaults.DefaultHelpdeskDomain}/ticket/{ticket.Id}";
 
             return $@"
                 <body style=""margin:0; padding:0; background-color:#f4f4f4; font-family:Arial, sans-serif;"">
@@ -105,7 +110,7 @@ namespace PortalHelpdesk.Templates.EmailTemplateProvider
             string ticketId = ticket.Id.ToString();
             string requesterName = ticket.Requester?.Name ?? "requisitante";
             string ticketTitle = ticket.Message?.Subject ?? "Sem Título";
-            string ticketUrl = $"https://helpdesk.cosmuz.com/ticket/{ticket.Id}";
+            string ticketUrl = $"https://{_appDefaults.DefaultHelpdeskDomain}/ticket/{ticket.Id}";
 
             return $@"
                 <body style=""margin:0; padding:0; background-color:#f4f4f4; font-family:Arial, sans-serif;"">
@@ -199,7 +204,7 @@ namespace PortalHelpdesk.Templates.EmailTemplateProvider
             string ticketId = ticket.Id.ToString();
             string requesterName = ticket.Requester?.Name ?? "requisitante";
             string assigneeName = assignee.Name ?? "um técnico";
-            string ticketUrl = $"https://helpdesk.cosmuz.com/ticket/{ticket.Id}";
+            string ticketUrl = $"https://{_appDefaults.DefaultHelpdeskDomain}/ticket/{ticket.Id}";
 
             return $@"
                 <body style=""margin:0; padding:0; background-color:#f4f4f4; font-family:Arial, sans-serif;"">
@@ -291,7 +296,7 @@ namespace PortalHelpdesk.Templates.EmailTemplateProvider
             string priorityLevel = ticket.Priority?.Level ?? "N/A";
             string categoryName = ticket.Category?.Name ?? "N/A";
             string creatorName = ticket.Creator?.Name ?? "System";
-            string ticketUrl = $"https://helpdesk.cosmuz.com/ticket/{ticket.Id}";
+            string ticketUrl = $"https://{_appDefaults.DefaultHelpdeskDomain}/ticket/{ticket.Id}";
 
             return $@"
                 <body style=""margin:0; padding:0; background-color:#f4f4f4; font-family:Arial, sans-serif;"">
@@ -461,7 +466,7 @@ namespace PortalHelpdesk.Templates.EmailTemplateProvider
         public string GetTicketCancelledTemplate(Ticket ticket)
         {
             string ticketId = ticket.Id.ToString();
-            string ticketUrl = $"https://helpdesk.cosmuz.com/ticket/{ticket.Id}";
+            string ticketUrl = $"https://{_appDefaults.DefaultHelpdeskDomain}/ticket/{ticket.Id}";
 
             return $@"
                 <body style=""margin:0; padding:0; background-color:#f4f4f4; font-family:Arial, sans-serif;"">
@@ -628,7 +633,7 @@ namespace PortalHelpdesk.Templates.EmailTemplateProvider
             string ticketId = ticket.Id.ToString();
             string requesterName = ticket.Requester?.Name ?? "requisitante";
             string ticketTitle = ticket.Message?.Subject ?? "Sem Título";
-            string ticketUrl = $"https://helpdesk.cosmuz.com/ticket/{ticket.Id}";
+            string ticketUrl = $"https://{_appDefaults.DefaultHelpdeskDomain}/ticket/{ticket.Id}";
 
             return $@"
                 <body style=""margin:0; padding:0; background-color:#f4f4f4; font-family:Arial, sans-serif;"">
@@ -720,7 +725,7 @@ namespace PortalHelpdesk.Templates.EmailTemplateProvider
         public string GetNewMessageTemplate(Ticket ticket)
         {
             string ticketId = ticket.Id.ToString();
-            string ticketUrl = $"https://helpdesk.cosmuz.com/ticket/{ticket.Id}";
+            string ticketUrl = $"https://{_appDefaults.DefaultHelpdeskDomain}/ticket/{ticket.Id}";
 
             return $@"
                 <body style=""margin:0; padding:0; background-color:#f4f4f4; font-family:Arial, sans-serif;"">
@@ -808,7 +813,7 @@ namespace PortalHelpdesk.Templates.EmailTemplateProvider
                         {message.Content}
                     </div>
                 </body>
-            ";  
+            ";
         }
     }
 }

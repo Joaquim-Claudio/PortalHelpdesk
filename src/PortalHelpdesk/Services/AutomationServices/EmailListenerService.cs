@@ -17,10 +17,10 @@ namespace PortalHelpdesk.Services.AutomationServices
         private readonly GraphServiceClient _graphClient;
         private readonly MicrosoftGraphConfig _config;
 
-        private TicketsService _ticketsService;
-        private UsersService _usersService;
-        private ConversationsService _conversationsService;
-        private AttachmentsService _attachmentsService;
+        private TicketsService? _ticketsService;
+        private UsersService? _usersService;
+        private ConversationsService? _conversationsService;
+        private AttachmentsService? _attachmentsService;
 
         private readonly IServiceScopeFactory _scopeFactory;
 
@@ -95,7 +95,7 @@ namespace PortalHelpdesk.Services.AutomationServices
                 });
 
             var messages = result?.Value ?? [];
-            // await MarkMessagesAsRead(messages);
+            await MarkMessagesAsRead(messages);
 
             return messages;
         }
@@ -136,7 +136,7 @@ namespace PortalHelpdesk.Services.AutomationServices
 
             if (ticketPart != null && int.TryParse(strTicketId, out int ticketId))
             {
-                var existingTicket = await _ticketsService.GetTicketById(ticketId);
+                var existingTicket = await _ticketsService!.GetTicketById(ticketId);
                 return existingTicket;
             }
 
@@ -146,7 +146,7 @@ namespace PortalHelpdesk.Services.AutomationServices
         public async Task CreateTicket(Message message)
         {
             var requester = await GetRequester(message);
-            var creator = await _usersService.GetSystemUser();
+            var creator = await _usersService!.GetSystemUser();
 
             var newMessage = new Models.Messages.Message
             {
@@ -166,8 +166,8 @@ namespace PortalHelpdesk.Services.AutomationServices
                 Requester = requester
             };
 
-            await _ticketsService.CreateTicket(ticket, newMessage, creator!);
-            await _attachmentsService.SaveEmailAttachments(newMessage, message, _graphClient);
+            await _ticketsService!.CreateTicket(ticket, newMessage, creator!);
+            await _attachmentsService!.SaveEmailAttachments(newMessage, message, _graphClient);
 
             await Task.CompletedTask;
         }
@@ -180,7 +180,7 @@ namespace PortalHelpdesk.Services.AutomationServices
             if (string.IsNullOrEmpty(fromEmail))
                 return null;
 
-            var user = await _usersService.GetUserByEmail(fromEmail);
+            var user = await _usersService!.GetUserByEmail(fromEmail);
 
             if (user == null)
             {
@@ -223,8 +223,8 @@ namespace PortalHelpdesk.Services.AutomationServices
                 References = [.. threadHeaders.References]
             };
 
-            await _conversationsService.AddEmailMessageToConversation(newMessage, ticket);
-            await _attachmentsService.SaveEmailAttachments(newMessage, message, _graphClient);
+            await _conversationsService!.AddEmailMessageToConversation(newMessage, ticket);
+            await _attachmentsService!.SaveEmailAttachments(newMessage, message, _graphClient);
 
             await Task.CompletedTask;
         }

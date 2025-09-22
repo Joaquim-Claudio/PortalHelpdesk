@@ -9,7 +9,7 @@ namespace PortalHelpdesk.Models.Messages
         public int MessageId { get; set; }
         // Navigation properties
         [JsonIgnore]
-        public Conversation Conversation { get; set; }
-        public Message Message { get; set; }
+        public Conversation? Conversation { get; set; }
+        public required Message Message { get; set; }
     }
 }

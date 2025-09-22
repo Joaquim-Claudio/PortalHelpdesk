@@ -10,7 +10,7 @@ namespace PortalHelpdesk.Models.Attachments
         public int AttachmentId { get; set; }
         // Navigation properties
         [JsonIgnore]
-        public Message Message { get; set; }
-        public Attachment Attachment { get; set; }
+        public Message? Message { get; set; }
+        public required Attachment Attachment { get; set; }
     }
 }

@@ -9,6 +9,8 @@ namespace PortalHelpdesk.Extensions
             var connString = config.GetConnectionString("DefaultConnection") ?? "";
             host.UseSerilog((context, services, configuration) =>
                 configuration
+                    .MinimumLevel.Information()
+                    .Enrich.FromLogContext()
                     .WriteTo.Console()
                     .WriteTo.PostgreSQL(
                         connectionString: connString,

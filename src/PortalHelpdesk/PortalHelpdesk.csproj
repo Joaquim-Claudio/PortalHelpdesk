@@ -10,10 +10,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="NewFolder\**" />
-    <Content Remove="NewFolder\**" />
-    <EmbeddedResource Remove="NewFolder\**" />
-    <None Remove="NewFolder\**" />
 	<None Update="Properties\launchSettings.json">
 		<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 	</None>
@@ -33,7 +29,6 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Graph" Version="5.93.0" />
-    <PackageReference Include="Microsoft.Identity.Client" Version="4.77.0" />
     <PackageReference Include="Microsoft.Identity.Web" Version="3.14.1" />
     <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="8.14.0" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
@@ -41,7 +36,6 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.4" />
     <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
     <PackageReference Include="Serilog.Sinks.PostgreSQL" Version="2.3.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
   </ItemGroup>
 
 </Project>

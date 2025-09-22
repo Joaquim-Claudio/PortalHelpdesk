@@ -34,8 +34,14 @@ namespace PortalHelpdesk.Controllers
                 }
 
                 var users = await _usersService.GetUserByEmail(userEmail);
-                _logger.LogInformation("OK");
 
+                if (users == null)
+                {
+                    _logger.LogInformation("User not found.");
+                    return NotFound("User not found.");
+                }
+
+                _logger.LogInformation("OK");
                 return Ok(users);
             }
             catch (Exception ex)

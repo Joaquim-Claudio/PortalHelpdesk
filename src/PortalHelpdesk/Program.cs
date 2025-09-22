@@ -1,6 +1,7 @@
 using DotNetEnv;
 using PortalHelpdesk.Extensions;
 using PortalHelpdesk.Filters;
+using PortalHelpdesk.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,9 +23,11 @@ builder.Host.AddAppLogging(builder.Configuration);
 
 var app = builder.Build();
 
+app.UseMiddleware<ExceptionMiddleware>();
 app.UseHttpsRedirection();
 app.UseCors("_AllowSpecificOrigins");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
 app.Run();

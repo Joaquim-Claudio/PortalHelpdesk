@@ -14,6 +14,21 @@ services:
   networks:
    - inner-link
 
+ api:
+  image: portalhelpdesk
+  container_name: portalhelpdesk_api
+  restart: always
+  ports:
+   - 80:8080
+   - 443:8081
+  env_file:
+   - ./api.env
+  networks:
+   - inner-link
+  depends_on:
+   - db
+   
+
 volumes:
  portalhelpdesk-data:
 

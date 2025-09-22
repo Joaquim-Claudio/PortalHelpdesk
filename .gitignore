@@ -45,5 +45,5 @@ Thumbs.db
 *.bak
 *.tmp
 
-.env
-.env.*
+*.env
+*.env.*

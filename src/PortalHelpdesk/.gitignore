@@ -36,9 +36,7 @@ Uploads/
 
 # Others
 *.vs/
-.temp
 *.temp
-.http
 *.http
 *.bak
 *.swp

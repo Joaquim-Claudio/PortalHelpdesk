@@ -1,7 +1,7 @@
 services:
  db:
   image: postgres:alpine3.19
-  container_name: portalhelpdesk-db
+  container_name: portalhelpdesk_db
   restart: always
   ports:
    - 5432:5432
